@@ -23,19 +23,16 @@ function setup() {
   createCanvas(cols * cellW, rows * cellH);
   pixelDensity(1);
 
-  // Webcam capture
   video = createCapture(VIDEO);
-  video.size(320, 240); // higher res source
+  video.size(320, 240);
   video.hide();
 
-  // Empty snapshot buffer
   snapshot = createImage(cellW, cellH);
 
   rSlider = createSlider(0, 255, 128);
   gSlider = createSlider(0, 255, 128);
   bSlider = createSlider(0, 255, 128);
 
-  // Optional: position them under the canvas
   rSlider.position(10, height + 10);
   gSlider.position(170, height + 10);
   bSlider.position(330, height + 10);
@@ -44,12 +41,17 @@ function setup() {
   hsvThresholdSlider.position(20, height + 80);
   hsvThresholdSlider.style('width', '160px');
 
-  facemesh = ml5.facemesh(video, () => {
+  facemesh = ml5.faceMesh(() => {
     console.log("FaceMesh model loaded");
   });
 
-  facemesh.on("predict", results => {
+  detectFace();
+}
+
+function detectFace() {
+  facemesh.detect(video, (results) => {
     faces = results;
+    detectFace();
   });
 }
 
@@ -111,14 +113,19 @@ function keyPressed() {
   if (key === '3') faceMode = 3;
 }
 
-// ------------------ HELPERS ------------------
-
 function takeSnapshot() {
+
+  if (video.width === 0 || video.height === 0) {
+    console.log("Video not ready yet");
+    return;
+  }
+
   snapshot.copy(
     video,
     0, 0, video.width, video.height,
     0, 0, cellW, cellH
   );
+
   snapshot.loadPixels();
 
   grayImg  = createGrayscaleImage(snapshot);
