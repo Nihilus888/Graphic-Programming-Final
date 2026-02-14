@@ -8,6 +8,7 @@ let rThreshImg, gThreshImg, bThreshImg;
 let hsvImg, ycbcrImg;
 let hsvThresholdSlider;
 let hsvThreshImg;
+let ycbcrThreshImg;
 let facemesh;
 let faces = [];
 let faceImg;
@@ -16,8 +17,8 @@ let faceMode = 0;
 // Grid settings
 const cellW = 160;
 const cellH = 120;
-const cols = 4;
-const rows = 3;
+const cols = 3;
+const rows = 5;
 
 function setup() {
   createCanvas(cols * cellW, rows * cellH);
@@ -41,67 +42,79 @@ function setup() {
   hsvThresholdSlider.position(20, height + 80);
   hsvThresholdSlider.style('width', '160px');
 
-  facemesh = ml5.faceMesh(() => {
-    console.log("FaceMesh model loaded");
-  });
-
-  detectFace();
+  // Initialize FaceMesh model
+  facemesh = ml5.faceMesh(video, modelLoaded);
 }
 
-function detectFace() {
+function modelLoaded() {
+  console.log("FaceMesh model loaded");
+  runFaceDetection();
+}
+
+function runFaceDetection() {
   facemesh.detect(video, (results) => {
     faces = results;
-    detectFace();
+    runFaceDetection(); // loop
   });
 }
 
 function draw() {
   background(30);
+  drawGridGuides();
 
   if (!hasSnapshot) {
     image(video, 0, 0, cellW, cellH);
-  } else {
-    image(snapshot, 0, 0);
-    drawFaceBoundingBox();
+    return;
   }
 
-  drawGridGuides();
-
-  if (hasSnapshot) {
-    image(grayImg, cellW, 0);
-    image(redImg,   0, cellH);
-    image(greenImg, cellW, cellH);
-    image(blueImg,  cellW * 2, cellH);
+  // Rows 1 - 4 (Your existing code is correct here)
+  image(snapshot, 0, 0); 
+  image(grayImg, cellW, 0);
+  image(redImg, 0, cellH);
+  image(greenImg, cellW, cellH);
+  image(blueImg, cellW * 2, cellH);
   
-    rThreshImg = createThresholdImage(snapshot, 'r', rSlider.value());
-    gThreshImg = createThresholdImage(snapshot, 'g', gSlider.value());
-    bThreshImg = createThresholdImage(snapshot, 'b', bSlider.value());
-  
-    image(rThreshImg, 0, cellH * 2);
-    image(gThreshImg, cellW, cellH * 2);
-    image(bThreshImg, cellW * 2, cellH * 2);
+  // Row 3: Thresholds
+  image(createThresholdImage(snapshot, 'r', rSlider.value()), 0, cellH * 2);
+  image(createThresholdImage(snapshot, 'g', gSlider.value()), cellW, cellH * 2);
+  image(createThresholdImage(snapshot, 'b', bSlider.value()), cellW * 2, cellH * 2);
 
-    image(hsvImg,   cellW * 3, cellH);     
-    image(ycbcrImg, cellW * 3, cellH * 2);
+  // Row 4: Colour Spaces
+  image(snapshot, 0, cellH * 3);
+  image(hsvImg, cellW, cellH * 3);
+  image(ycbcrImg, cellW * 2, cellH * 3);
 
-    hsvThreshImg = createHSVThresholdImage(snapshot, hsvThresholdSlider.value());
-    image(hsvThreshImg, cellW * 3, 0);
+  // --- ROW 5: FACE DETECTION & REPLACEMENT (Task 12) ---
+  let fx = 0;
+  let fy = cellH * 4;
+
+  // If we have a snapshot but faceImg is empty, keep trying to extract 
+  // until the AI provides coordinates.
+  if (!faceImg && faces.length > 0) {
+    extractFaceImage();
   }
 
   if (faceImg) {
-    let fx = cellW * 2; // column index
-    let fy = 0;         // row index
-
+    // Replace the face based on keypress 1, 2, 3 (Task 12a, b, c)
     if (faceMode === 1) {
-      image(makeGrayFace(faceImg), fx, fy);
+      image(makeGrayFace(faceImg), fx, fy, cellW, cellH);
     } else if (faceMode === 2) {
-      image(makeFlippedFace(faceImg), fx, fy);
+      image(makeFlippedFace(faceImg), fx, fy, cellW, cellH);
     } else if (faceMode === 3) {
+      // Requirements: Must be grayscale circles (Task 12c)
       drawPixelatedFace(faceImg, fx, fy);
     } else {
-      image(faceImg, fx, fy);
+      image(faceImg, fx, fy, cellW, cellH);
     }
+  } else {
+    fill(255);
+    textAlign(CENTER, CENTER);
+    text("No Face Detected", fx + cellW / 2, fy + cellH / 2);
   }
+
+  // Task 10: Final Thresholds
+  image(createHSVThresholdImage(snapshot, hsvThresholdSlider.value()), cellW, cellH * 4);
+  image(createYCbCrThresholdImage(snapshot, hsvThresholdSlider.value()), cellW * 2, cellH * 4);
 }
 
 function keyPressed() {
@@ -114,29 +127,19 @@ function keyPressed() {
 }
 
 function takeSnapshot() {
+  if (video.width === 0) return;
 
-  if (video.width === 0 || video.height === 0) {
-    console.log("Video not ready yet");
-    return;
-  }
-
-  snapshot.copy(
-    video,
-    0, 0, video.width, video.height,
-    0, 0, cellW, cellH
-  );
-
-  snapshot.loadPixels();
+  snapshot.copy(video, 0, 0, video.width, video.height, 0, 0, cellW, cellH);
+  
+  // Reset faceImg so the draw loop tries to find it again in the new snapshot
+  faceImg = null; 
 
   grayImg  = createGrayscaleImage(snapshot);
   redImg   = createChannelImage(snapshot, 'r');
   greenImg = createChannelImage(snapshot, 'g');
   blueImg  = createChannelImage(snapshot, 'b');
-
   hsvImg   = createHSVImage(snapshot);
   ycbcrImg = createYCbCrImage(snapshot);
-
-  extractFaceImage();
 
   hasSnapshot = true;
 }
@@ -360,64 +363,78 @@ function createGrayscaleImage(srcImg) {
     return result;
   }
 
-  function drawFaceBoundingBox() {
-    if (faces.length > 0) {
-      let face = faces[0];
+  function createYCbCrThresholdImage(srcImg, threshold) {
+    let result = createImage(srcImg.width, srcImg.height);
+    srcImg.loadPixels();
+    result.loadPixels();
 
-      let minX = Infinity;
-      let minY = Infinity;
-      let maxX = -Infinity;
-      let maxY = -Infinity;
+    for (let y = 0; y < srcImg.height; y++) {
+      for (let x = 0; x < srcImg.width; x++) {
 
-      // Loop through all landmarks
-      for (let pt of face.scaledMesh) {
-        minX = min(minX, pt[0]);
-        minY = min(minY, pt[1]);
-        maxX = max(maxX, pt[0]);
-        maxY = max(maxY, pt[1]);
+        let i = (x + y * srcImg.width) * 4;
+
+        let R = srcImg.pixels[i];
+        let G = srcImg.pixels[i + 1];
+        let B = srcImg.pixels[i + 2];
+
+        // Y channel
+        let Y = 0.299 * R + 0.587 * G + 0.114 * B;
+
+        let out = Y > threshold ? 255 : 0;
+
+        result.pixels[i]     = out;
+        result.pixels[i + 1] = out;
+        result.pixels[i + 2] = out;
+        result.pixels[i + 3] = 255;
       }
+    }
 
-      // Scale to snapshot size
-      let scaleX = cellW / video.width;
-      let scaleY = cellH / video.height;
+    result.updatePixels();
+    return result;
+  }
 
-      noFill();
-      stroke(0, 255, 0);
-      strokeWeight(2);
 
-      rect(
-        minX * scaleX,
-        minY * scaleY,
-        (maxX - minX) * scaleX,
-        (maxY - minY) * scaleY
-      );
+function drawFaceBoundingBox() {
+  if (faces && faces.length > 0) {
+    let face = faces[0];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    // Fix: Use .keypoints and .x/.y for ml5 v1.0
+    for (let pt of face.keypoints) {
+      minX = min(minX, pt.x);
+      minY = min(minY, pt.y);
+      maxX = max(maxX, pt.x);
+      maxY = max(maxY, pt.y);
+    }
+
+    let scaleX = cellW / video.width;
+    let scaleY = cellH / video.height;
+
+    noFill();
+    stroke(0, 255, 0);
+    strokeWeight(2);
+    rect(minX * scaleX, minY * scaleY, (maxX - minX) * scaleX, (maxY - minY) * scaleY);
   }
 }
 
 function extractFaceImage() {
   if (faces.length === 0) return;
-
   let face = faces[0];
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
-  let minX = Infinity, minY = Infinity;
-  let maxX = -Infinity, maxY = -Infinity;
-
-  for (let pt of face.scaledMesh) {
-    minX = min(minX, pt[0]);
-    minY = min(minY, pt[1]);
-    maxX = max(maxX, pt[0]);
-    maxY = max(maxY, pt[1]);
+  // Requirement 11: Using keypoints for FaceMesh
+  for (let pt of face.keypoints) {
+    minX = min(minX, pt.x);
+    minY = min(minY, pt.y);
+    maxX = max(maxX, pt.x);
+    maxY = max(maxY, pt.y);
   }
 
   let scaleX = cellW / video.width;
   let scaleY = cellH / video.height;
-
-  let x = minX * scaleX;
-  let y = minY * scaleY;
-  let w = (maxX - minX) * scaleX;
-  let h = (maxY - minY) * scaleY;
-
-  faceImg = snapshot.get(x, y, w, h);
+  
+  // Requirement 12: Extracting the sub-image
+  faceImg = snapshot.get(minX * scaleX, minY * scaleY, (maxX - minX) * scaleX, (maxY - minY) * scaleY);
 }
 
 function makeGrayFace(img) {
@@ -463,23 +480,25 @@ function makeFlippedFace(img) {
 function drawPixelatedFace(img, xOffset, yOffset) {
   img.loadPixels();
   noStroke();
-
   let blockSize = 5;
 
   for (let y = 0; y < img.height; y += blockSize) {
     for (let x = 0; x < img.width; x += blockSize) {
-
       let sum = 0;
       let count = 0;
 
+      // Calculate average intensity (Requirement 12.c.iii)
       for (let j = 0; j < blockSize; j++) {
         for (let i = 0; i < blockSize; i++) {
           let px = x + i;
           let py = y + j;
           if (px < img.width && py < img.height) {
             let idx = (px + py * img.width) * 4;
-            let g = (img.pixels[idx] + img.pixels[idx+1] + img.pixels[idx+2]) / 3;
-            sum += g;
+            // Manual grayscale conversion
+            let r = img.pixels[idx];
+            let g = img.pixels[idx+1];
+            let b = img.pixels[idx+2];
+            sum += (r + g + b) / 3;
             count++;
           }
         }
@@ -487,11 +506,8 @@ function drawPixelatedFace(img, xOffset, yOffset) {
 
       let avg = sum / count;
       fill(avg);
-      circle(
-        xOffset + x + blockSize / 2,
-        yOffset + y + blockSize / 2,
-        blockSize
-      );
+      // Draw circle in center (Requirement 12.c.iv)
+      circle(xOffset + x + blockSize / 2, yOffset + y + blockSize / 2, blockSize);
     }
   }
 }
