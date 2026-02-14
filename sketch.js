@@ -488,3 +488,46 @@ function drawPixelatedFace(img, xOffset, yOffset) {
     }
   }
 }
+
+/*
+This application is an image-processing tool built using p5.js and a live webcam feed. 
+I designed the sketch to capture video input and allow the user to take a snapshot, 
+which is scaled down to a resolution of 160×120 pixels according to requirements. This snapshot is then used as the source image for all subsequent image-processing operations and is displayed within 
+a structured grid layout r.
+
+After capturing a snapshot, I implemented several image-processing techniques. First, 
+the image is converted to greyscale and the brightness is reduced by 20%. During this 
+process, I ensured that pixel intensity values were constrained between 0 and 255 to 
+prevent invalid values. I then split the original image into its red, green, and blue 
+colour channels and displayed each channel separately. For each RGB channel, I applied 
+image thresholding controlled by sliders ranging from 0 (black) to 255 (white), allowing 
+real-time exploration of segmentation effects.
+
+I also implemented colour space conversion using two different algorithms: HSV and 
+YCbCr. The HSV conversion was implemented manually by converting RGB values into hue, 
+saturation, and value components. The YCbCr conversion focuses on extracting the 
+luminance (Y) channel to represent image intensity. Using the HSV colour space, I 
+applied thresholding to the Value (V) channel only, with a slider used to control the 
+threshold. This demonstrates how thresholding results differ when operating in 
+alternative colour spaces compared to RGB.
+
+As an extension, I implemented face detection using the ml5.js FaceMesh API. The model 
+detects facial landmarks in real time from the webcam feed. I computed a bounding box 
+around the face by finding the minimum and maximum x and y coordinates across all 
+detected landmarks, then scaled these coordinates to match the 160×120 snapshot 
+resolution. The bounding box is drawn on top of the snapshot image to clearly indicate 
+the detected face region. This extension is unique because it combines machine 
+learning–based face detection with traditional image-processing techniques within the 
+same application.
+
+During development, I encountered several challenges. One issue was ensuring pixel 
+values remained within valid bounds when adjusting brightness, which I resolved using 
+value clamping. Another challenge involved correctly scaling coordinates between the 
+webcam resolution and the reduced snapshot size, particularly for face detection. This 
+was addressed by applying appropriate scaling factors based on the image dimensions.
+
+Overall, I was able to successfully meet the project objectives and implement all 
+required tasks and extensions. If I were to develop this project further, I would apply 
+additional image-processing effects specifically within the detected face region to 
+enhance interactivity and visual feedback.
+*/
