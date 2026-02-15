@@ -1,3 +1,18 @@
+/*Project Commentary
+
+This project is an interactive image-processing tool that I built using p5.js. It uses live webcam input to perform real-time computer vision tasks. The interface is organized into a 3 × 5 grid layout. 
+When the user presses the ‘S’ key, the program captures a frame from the webcam and resizes it to a minimum resolution of 160 × 120 pixels. This snapshot becomes the static image that all the processing effects are applied to, including grayscale conversion, RGB channel splitting, and different color space transformations.
+For the technical implementation, I manually coded several core image-processing techniques to show that I understand low-level pixel manipulation. For grayscale and brightness adjustments, I used nested loops to go through each pixel and calculate its intensity. 
+I reduced the brightness by 20% and used constrain() to make sure the values never went below zero. I also implemented thresholding tools for RGB, HSV (Value channel), and YCbCr (Luminance channel), all controlled with sliders for interactive segmentation. 
+Instead of relying on built-in conversions, I manually coded the HSV and YCbCr transformations. For HSV, I calculated the delta between normalized RGB values to determine Hue, Saturation, and Value. For YCbCr, I focused on computing the Y (luminance) component for brightness-based segmentation.
+For face detection, I integrated the ml5.js FaceMesh API. To meet the requirements of Task 12, I created three custom filters that can be toggled using the keyboard (keys 1, 2, and 3). The grayscale filter calculates the average of the RGB values manually. 
+The horizontal flip filter reverses the x-axis pixel indices using nested loops instead of using p5’s scale() function. The pixelation filter processes the image in 5 × 5 blocks, calculates the average grayscale value of each block, and renders it as a circle centered within the block.
+My creative extension focuses on facial feature tracking. In addition to detecting the face, I track a specific landmark — the nose tip — from the live faces array. I rescale the coordinates from the 320 × 240 video feed to the 160 × 120 grid so it matches the processed image. 
+Using this data, I draw a “clown nose” overlay that works across all filter modes. This demonstrates how machine learning data can be combined with dynamic graphical elements. One of the main challenges I faced was a breaking change in ml5.js v1.0, where the scaledMesh property was replaced with keypoints. 
+I fixed this by refactoring my code to access the landmark coordinates using object properties (pt.x, pt.y). I also dealt with a race condition where face detection was not immediately ready after taking a snapshot. I solved this by adding retry logic in the draw() loop to continuously check for a detected face until it was successfully extracted.
+Overall, this project demonstrates both technical understanding and creative application of real-time image processing.
+*/
+
 let video;
 let snapshot;        
 let hasSnapshot = false;
@@ -13,6 +28,8 @@ let facemesh;
 let faces = [];
 let faceImg;
 let faceMode = 0; 
+let faceX = 0;
+let faceY = 0;
 
 // Grid settings
 const cellW = 160;
@@ -84,32 +101,51 @@ function draw() {
   image(hsvImg, cellW, cellH * 3);
   image(ycbcrImg, cellW * 2, cellH * 3);
 
-  // --- ROW 5: FACE DETECTION & REPLACEMENT (Task 12) ---
+  // -------------------------
+  // ROW 5 - CONSOLIDATED
+  // -------------------------
+  // -------------------------
+  // ROW 5 - NATURAL SIZE (NOT ZOOMED)
+  // -------------------------
   let fx = 0;
   let fy = cellH * 4;
 
-  // If we have a snapshot but faceImg is empty, keep trying to extract 
-  // until the AI provides coordinates.
+  fill(20); 
+  rect(fx, fy, cellW, cellH);
+
   if (!faceImg && faces.length > 0) {
     extractFaceImage();
   }
 
   if (faceImg) {
-    // Replace the face based on keypress 1, 2, 3 (Task 12a, b, c)
+    // 1. Calculate the local position inside the cell
+    // faceX and faceY come from your extractFaceImage function
+    let drawX = fx + faceX;
+    let drawY = fy + faceY;
+
     if (faceMode === 1) {
-      image(makeGrayFace(faceImg), fx, fy, cellW, cellH);
-    } else if (faceMode === 2) {
-      image(makeFlippedFace(faceImg), fx, fy, cellW, cellH);
-    } else if (faceMode === 3) {
-      // Requirements: Must be grayscale circles (Task 12c)
+      // Removed cellW, cellH to stop the zoom
+      image(makeGrayFace(faceImg), drawX, drawY);
+    } 
+    else if (faceMode === 2) {
+      image(makeFlippedFace(faceImg), drawX, drawY);
+    } 
+    else if (faceMode === 3) {
+      // Your drawPixelatedFace already handles the drawX/drawY internally
       drawPixelatedFace(faceImg, fx, fy);
-    } else {
-      image(faceImg, fx, fy, cellW, cellH);
+    } 
+    else {
+      image(faceImg, drawX, drawY);
     }
-  } else {
-    fill(255);
-    textAlign(CENTER, CENTER);
-    text("No Face Detected", fx + cellW / 2, fy + cellH / 2);
+
+    // 2. Draw extension (Clown nose) on top
+    if (faces.length > 0) {
+      let nose = faces[0].keypoints[1];
+      let scaleX = cellW / video.width;
+      let scaleY = cellH / video.height;
+      fill(255, 0, 0, 150);
+      circle(fx + (nose.x * scaleX), fy + (nose.y * scaleY), 10);
+    }
   }
 
   // Task 10: Final Thresholds
@@ -121,9 +157,9 @@ function keyPressed() {
   if (key === 's' || key === 'S') {
     takeSnapshot();
   }
-  if (key === '1') faceMode = 1;
-  if (key === '2') faceMode = 2;
-  if (key === '3') faceMode = 3;
+  if (key === '1') faceMode = 1; // Grayscale
+  if (key === '2') faceMode = 2; // Flip
+  if (key === '3') faceMode = 3; // Pixelate
 }
 
 function takeSnapshot() {
@@ -422,7 +458,6 @@ function extractFaceImage() {
   let face = faces[0];
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
-  // Requirement 11: Using keypoints for FaceMesh
   for (let pt of face.keypoints) {
     minX = min(minX, pt.x);
     minY = min(minY, pt.y);
@@ -433,8 +468,17 @@ function extractFaceImage() {
   let scaleX = cellW / video.width;
   let scaleY = cellH / video.height;
   
-  // Requirement 12: Extracting the sub-image
-  faceImg = snapshot.get(minX * scaleX, minY * scaleY, (maxX - minX) * scaleX, (maxY - minY) * scaleY);
+  // Use Math.floor to ensure we have integers for the pixel array
+  faceX = Math.floor(minX * scaleX);
+  faceY = Math.floor(minY * scaleY);
+  let faceW = Math.floor((maxX - minX) * scaleX);
+  let faceH = Math.floor((maxY - minY) * scaleY);
+  
+  // Extra safety: make sure width/height are at least 1
+  faceW = max(1, faceW);
+  faceH = max(1, faceH);
+
+  faceImg = snapshot.get(faceX, faceY, faceW, faceH);
 }
 
 function makeGrayFace(img) {
@@ -461,15 +505,18 @@ function makeFlippedFace(img) {
 
   for (let y = 0; y < img.height; y++) {
     for (let x = 0; x < img.width; x++) {
-
+      // Get the index of the current pixel
       let srcIndex = (x + y * img.width) * 4;
+      
+      // Calculate the opposite X position (Flip logic)
       let dstX = img.width - 1 - x;
       let dstIndex = (dstX + y * img.width) * 4;
 
+      // Copy RGBA values manually
       result.pixels[dstIndex]     = img.pixels[srcIndex];
       result.pixels[dstIndex + 1] = img.pixels[srcIndex + 1];
       result.pixels[dstIndex + 2] = img.pixels[srcIndex + 2];
-      result.pixels[dstIndex + 3] = 255;
+      result.pixels[dstIndex + 3] = img.pixels[srcIndex + 3];
     }
   }
 
@@ -478,79 +525,53 @@ function makeFlippedFace(img) {
 }
 
 function drawPixelatedFace(img, xOffset, yOffset) {
+  if (!img) return;
+  
+  // Force p5 to recognize the pixel data
   img.loadPixels();
-  noStroke();
+  
   let blockSize = 5;
+  noStroke();
+
+  // If the console shows this, the function IS being called
+  if (frameCount % 60 === 0) console.log("Pixelating face of size: " + img.width + "x" + img.height);
 
   for (let y = 0; y < img.height; y += blockSize) {
     for (let x = 0; x < img.width; x += blockSize) {
-      let sum = 0;
+      
+      let rSum = 0;
+      let gSum = 0;
+      let bSum = 0;
       let count = 0;
 
-      // Calculate average intensity (Requirement 12.c.iii)
+      // Sample the 5x5 block
       for (let j = 0; j < blockSize; j++) {
         for (let i = 0; i < blockSize; i++) {
           let px = x + i;
           let py = y + j;
+
           if (px < img.width && py < img.height) {
-            let idx = (px + py * img.width) * 4;
-            // Manual grayscale conversion
-            let r = img.pixels[idx];
-            let g = img.pixels[idx+1];
-            let b = img.pixels[idx+2];
-            sum += (r + g + b) / 3;
+            let index = (px + py * img.width) * 4;
+            rSum += img.pixels[index];
+            gSum += img.pixels[index + 1];
+            bSum += img.pixels[index + 2];
             count++;
           }
         }
       }
 
-      let avg = sum / count;
-      fill(avg);
-      // Draw circle in center (Requirement 12.c.iv)
-      circle(xOffset + x + blockSize / 2, yOffset + y + blockSize / 2, blockSize);
+      if (count > 0) {
+        // Calculate average and convert to Grayscale (Requirement 12.c.i)
+        let avg = (rSum / count + gSum / count + bSum / count) / 3;
+        
+        fill(avg);
+        
+        // Exact placement: Grid Box Start + Face Position + Block Offset
+        let posX = xOffset + faceX + x + (blockSize / 2);
+        let posY = yOffset + faceY + y + (blockSize / 2);
+        
+        circle(posX, posY, blockSize);
+      }
     }
   }
 }
-
-/*
-This application is an image-processing tool built using p5.js and a live webcam feed. 
-I designed the sketch to capture video input and allow the user to take a snapshot, 
-which is scaled down to a resolution of 160×120 pixels according to requirements. This snapshot is then used as the source image for all subsequent image-processing operations and is displayed within 
-a structured grid layout r.
-
-After capturing a snapshot, I implemented several image-processing techniques. First, 
-the image is converted to greyscale and the brightness is reduced by 20%. During this 
-process, I ensured that pixel intensity values were constrained between 0 and 255 to 
-prevent invalid values. I then split the original image into its red, green, and blue 
-colour channels and displayed each channel separately. For each RGB channel, I applied 
-image thresholding controlled by sliders ranging from 0 (black) to 255 (white), allowing 
-real-time exploration of segmentation effects.
-
-I also implemented colour space conversion using two different algorithms: HSV and 
-YCbCr. The HSV conversion was implemented manually by converting RGB values into hue, 
-saturation, and value components. The YCbCr conversion focuses on extracting the 
-luminance (Y) channel to represent image intensity. Using the HSV colour space, I 
-applied thresholding to the Value (V) channel only, with a slider used to control the 
-threshold. This demonstrates how thresholding results differ when operating in 
-alternative colour spaces compared to RGB.
-
-As an extension, I implemented face detection using the ml5.js FaceMesh API. The model 
-detects facial landmarks in real time from the webcam feed. I computed a bounding box 
-around the face by finding the minimum and maximum x and y coordinates across all 
-detected landmarks, then scaled these coordinates to match the 160×120 snapshot 
-resolution. The bounding box is drawn on top of the snapshot image to clearly indicate 
-the detected face region. This extension is unique because it combines machine 
-learning–based face detection with traditional image-processing techniques within the 
-same application.
-
-During development, I encountered several challenges. One issue was ensuring pixel 
-values remained within valid bounds when adjusting brightness, which I resolved using 
-value clamping. Another challenge involved correctly scaling coordinates between the 
-webcam resolution and the reduced snapshot size, particularly for face detection. This 
-was addressed by applying appropriate scaling factors based on the image dimensions.
-
-Overall, I was able to successfully meet the project objectives and implement all 
-required tasks and extensions. If I were to develop this project further, I would apply 
-additional image-processing effects specifically within the detected face region to 
-enhance interactivity and visual feedback.
-*/
