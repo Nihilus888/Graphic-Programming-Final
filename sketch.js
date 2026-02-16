@@ -64,7 +64,6 @@ function setup() {
 }
 
 function modelLoaded() {
-  console.log("FaceMesh model loaded");
   runFaceDetection();
 }
 
@@ -139,13 +138,30 @@ function draw() {
     }
 
     // 2. Draw extension (Clown nose) on top
-    if (faces.length > 0) {
+    if (faces.length > 0 && faces[0].keypoints.length > 1) {
+  
       let nose = faces[0].keypoints[1];
+
       let scaleX = cellW / video.width;
       let scaleY = cellH / video.height;
+
+      // Create pulsing effect
+      let baseSize = 10;
+      let pulseAmount = 4;
+      let pulse = sin(frameCount * 0.1) * pulseAmount;
+
+      let noseSize = baseSize + pulse;
+
       fill(255, 0, 0, 150);
-      circle(fx + (nose.x * scaleX), fy + (nose.y * scaleY), 10);
+      noStroke();
+
+      circle(
+        fx + (nose.x * scaleX),
+        fy + (nose.y * scaleY),
+        noseSize
+      );
     }
+
   }
 
   // Task 10: Final Thresholds
@@ -532,9 +548,6 @@ function drawPixelatedFace(img, xOffset, yOffset) {
   
   let blockSize = 5;
   noStroke();
-
-  // If the console shows this, the function IS being called
-  if (frameCount % 60 === 0) console.log("Pixelating face of size: " + img.width + "x" + img.height);
 
   for (let y = 0; y < img.height; y += blockSize) {
     for (let x = 0; x < img.width; x += blockSize) {
