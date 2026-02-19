@@ -1,16 +1,18 @@
 /*Project Commentary
 
-This project is an interactive image-processing tool that I built using p5.js. It uses live webcam input to perform real-time computer vision tasks. The interface is organized into a 3 × 5 grid layout. 
-When the user presses the ‘S’ key, the program captures a frame from the webcam and resizes it to a minimum resolution of 160 × 120 pixels. This snapshot becomes the static image that all the processing effects are applied to, including grayscale conversion, RGB channel splitting, and different color space transformations.
-For the technical implementation, I manually coded several core image-processing techniques to show that I understand low-level pixel manipulation. For grayscale and brightness adjustments, I used nested loops to go through each pixel and calculate its intensity. 
-I reduced the brightness by 20% and used constrain() to make sure the values never went below zero. I also implemented thresholding tools for RGB, HSV (Value channel), and YCbCr (Luminance channel), all controlled with sliders for interactive segmentation. 
-Instead of relying on built-in conversions, I manually coded the HSV and YCbCr transformations. For HSV, I calculated the delta between normalized RGB values to determine Hue, Saturation, and Value. For YCbCr, I focused on computing the Y (luminance) component for brightness-based segmentation.
-For face detection, I integrated the ml5.js FaceMesh API. To meet the requirements of Task 12, I created three custom filters that can be toggled using the keyboard (keys 1, 2, and 3). The grayscale filter calculates the average of the RGB values manually. 
-The horizontal flip filter reverses the x-axis pixel indices using nested loops instead of using p5’s scale() function. The pixelation filter processes the image in 5 × 5 blocks, calculates the average grayscale value of each block, and renders it as a circle centered within the block.
-My creative extension focuses on facial feature tracking. In addition to detecting the face, I track a specific landmark — the nose tip — from the live faces array. I rescale the coordinates from the 320 × 240 video feed to the 160 × 120 grid so it matches the processed image. 
-Using this data, I draw a “clown nose” overlay that works across all filter modes. This demonstrates how machine learning data can be combined with dynamic graphical elements. One of the main challenges I faced was a breaking change in ml5.js v1.0, where the scaledMesh property was replaced with keypoints. 
-I fixed this by refactoring my code to access the landmark coordinates using object properties (pt.x, pt.y). I also dealt with a race condition where face detection was not immediately ready after taking a snapshot. I solved this by adding retry logic in the draw() loop to continuously check for a detected face until it was successfully extracted.
-Overall, this project demonstrates both technical understanding and creative application of real-time image processing.
+This project is an interactive image-processing tool that I built using p5.js and it uses a live webcam input function to perform real-time computer vision tasks while the interface is organized into a 3 × 5 grid layout.
+
+When the user presses the ‘S’ key, the program uses the webcam to take a snapshot and it then resizes to a minimum resolution of 160 × 120 pixels as per the guidelines where this snapshot becomes the static image that all the processing effects are applied to.
+
+For the technical implementation, I coded several core image-processing techniques to show that I understand low-level pixel manipulation. An example of it is for grayscale and brightness adjustments where I used nested loops to go through each pixel and calculate its intensity and I reduced the brightness by 20% and used constrain() to make sure the values never went below zero. To aid in the process, I built a custom image processing suite featuring various thresholding such as RGB, HSV, and YCbCr spaces where I implemented the HSV and YCbCr transformations from scratch where the code handles normalized RGB deltas for Hue/Saturation and isolates the Y-channel for luminance-based filtering. As for the creative layer, I integrated ml5.js FaceMesh and developed a toggleable filter system using manual pixel manipulation.
+
+The horizontal flip filter reverses the x-axis pixel indices using nested loops instead of using p5’s scale() function. The pixelation filter processes the image in 5 × 5 blocks, calculates the average grayscale value of each block and then renders it as a circle centered within the block.
+My creative extension focuses on facial feature tracking where it not only detects the face but also tracks the nose tip from the live faces array. To do this extension, I had to rescale the coordinates from the 320 × 240 video feed to the 160 × 120 grid so it matches the processed image where I then can draw a “clown nose” overlay that works across all filter modes.
+
+One of the challenges I faced was an issue in ml5.js v1.0 was where the scaledMesh property was replaced with keypoints and to rectify this, I refactored my code to access the landmark coordinates using object properties (pt.x, pt.y). Another issue that arose was a race condition where face detection was not immediately ready after taking a snapshot. To resolve this issue, I solved this by adding retry logic in the draw() loop to continuously check for a detected face until it was successfully extracted.
+
+To conclude, this project was eye opening and allowed me to play and experiment with images and how do I use it for graphics programming. 
+
 */
 
 let video;
