@@ -72,7 +72,7 @@ function modelLoaded() {
 function runFaceDetection() {
   facemesh.detect(video, (results) => {
     faces = results;
-    runFaceDetection(); // loop
+    runFaceDetection();
   });
 }
 
@@ -85,7 +85,7 @@ function draw() {
     return;
   }
 
-  // Rows 1 - 4 (Your existing code is correct here)
+  // Rows 1 - 4 
   image(snapshot, 0, 0); 
   image(grayImg, cellW, 0);
   image(redImg, 0, cellH);
@@ -102,12 +102,7 @@ function draw() {
   image(hsvImg, cellW, cellH * 3);
   image(ycbcrImg, cellW * 2, cellH * 3);
 
-  // -------------------------
-  // ROW 5 - CONSOLIDATED
-  // -------------------------
-  // -------------------------
-  // ROW 5 - NATURAL SIZE (NOT ZOOMED)
-  // -------------------------
+  // Row 5: Pixelated Face and more
   let fx = 0;
   let fy = cellH * 4;
 
@@ -119,8 +114,6 @@ function draw() {
   }
 
   if (faceImg) {
-    // 1. Calculate the local position inside the cell
-    // faceX and faceY come from your extractFaceImage function
     let drawX = fx + faceX;
     let drawY = fy + faceY;
 
@@ -132,14 +125,13 @@ function draw() {
       image(makeFlippedFace(faceImg), drawX, drawY);
     } 
     else if (faceMode === 3) {
-      // Your drawPixelatedFace already handles the drawX/drawY internally
       drawPixelatedFace(faceImg, fx, fy);
     } 
     else {
       image(faceImg, drawX, drawY);
     }
 
-    // 2. Draw extension (Clown nose) on top
+    // Extension implementation
     if (faces.length > 0 && faces[0].keypoints.length > 1) {
   
       let nose = faces[0].keypoints[1];
@@ -166,7 +158,7 @@ function draw() {
 
   }
 
-  // Task 10: Final Thresholds
+  // Final Thresholds
   image(createHSVThresholdImage(snapshot, hsvThresholdSlider.value()), cellW, cellH * 4);
   image(createYCbCrThresholdImage(snapshot, hsvThresholdSlider.value()), cellW * 2, cellH * 4);
 }
@@ -175,9 +167,12 @@ function keyPressed() {
   if (key === 's' || key === 'S') {
     takeSnapshot();
   }
-  if (key === '1') faceMode = 1; // Grayscale
-  if (key === '2') faceMode = 2; // Flip
-  if (key === '3') faceMode = 3; // Pixelate
+  // Grayscale
+  if (key === '1') faceMode = 1;
+  // Flip
+  if (key === '2') faceMode = 2; 
+  // Pixelate
+  if (key === '3') faceMode = 3; 
 }
 
 function takeSnapshot() {
@@ -185,7 +180,6 @@ function takeSnapshot() {
 
   snapshot.copy(video, 0, 0, video.width, video.height, 0, 0, cellW, cellH);
   
-  // Reset faceImg so the draw loop tries to find it again in the new snapshot
   faceImg = null; 
 
   grayImg  = createGrayscaleImage(snapshot);
@@ -453,7 +447,6 @@ function drawFaceBoundingBox() {
     let face = faces[0];
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
-    // Fix: Use .keypoints and .x/.y for ml5 v1.0
     for (let pt of face.keypoints) {
       minX = min(minX, pt.x);
       minY = min(minY, pt.y);
@@ -486,13 +479,12 @@ function extractFaceImage() {
   let scaleX = cellW / video.width;
   let scaleY = cellH / video.height;
   
-  // Use Math.floor to ensure we have integers for the pixel array
+  // Use Math.floor to ensure integers for the pixel array
   faceX = Math.floor(minX * scaleX);
   faceY = Math.floor(minY * scaleY);
   let faceW = Math.floor((maxX - minX) * scaleX);
   let faceH = Math.floor((maxY - minY) * scaleY);
   
-  // Extra safety: make sure width/height are at least 1
   faceW = max(1, faceW);
   faceH = max(1, faceH);
 
@@ -576,12 +568,12 @@ function drawPixelatedFace(img, xOffset, yOffset) {
       }
 
       if (count > 0) {
-        // Calculate average and convert to Grayscale (Requirement 12.c.i)
+        // Calculate average and convert to Grayscale
         let avg = (rSum / count + gSum / count + bSum / count) / 3;
         
         fill(avg);
         
-        // Exact placement: Grid Box Start + Face Position + Block Offset
+        // Grid Box Start + Face Position + Block Offset
         let posX = xOffset + faceX + x + (blockSize / 2);
         let posY = yOffset + faceY + y + (blockSize / 2);
         
