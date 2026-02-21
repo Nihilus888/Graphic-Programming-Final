@@ -118,7 +118,6 @@ function draw() {
     let drawY = fy + faceY;
 
     if (faceMode === 1) {
-      // Removed cellW, cellH to stop the zoom
       image(makeGrayFace(faceImg), drawX, drawY);
     } 
     else if (faceMode === 2) {
@@ -158,7 +157,7 @@ function draw() {
 
   }
 
-  // Final Thresholds
+  // Final thresholds
   image(createHSVThresholdImage(snapshot, hsvThresholdSlider.value()), cellW, cellH * 4);
   image(createYCbCrThresholdImage(snapshot, hsvThresholdSlider.value()), cellW * 2, cellH * 4);
 }
@@ -479,7 +478,6 @@ function extractFaceImage() {
   let scaleX = cellW / video.width;
   let scaleY = cellH / video.height;
   
-  // Use Math.floor to ensure integers for the pixel array
   faceX = Math.floor(minX * scaleX);
   faceY = Math.floor(minY * scaleY);
   let faceW = Math.floor((maxX - minX) * scaleX);
